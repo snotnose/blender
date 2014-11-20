@@ -1,12 +1,14 @@
 bl_info = {
     "name": "Vertex groups extensions",
-    "description": "Adds more vertex groups options",
     "author": "Tal Hershkovich",
-    "location": "Object Data > vertex groups specials, and Info Header",
     "version" : (0, 1),
     "blender" : (2, 72, 0),
+    "location": "Object Data > vertex groups specials, and Info Header",
+    "description": "Adds more vertex groups options",
+    "warning": "",
+    "wiki_url": "",
     "category": "Mesh"}
-
+    
 import bpy
 
 #apply new functions inside the vertex groups options

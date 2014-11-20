@@ -1,12 +1,14 @@
 bl_info = {
     "name": "Create Deform Armature from Rig",
-    "description": "copies the deform bones of a rig into a deform armature with copy Transforms applied ",
     "author": "Tal Hershkovich",
-    "location": "Create Deform Armature from Rig in spacebar menu",
     "version" : (0, 1),
     "blender" : (2, 72, 0),
-    "category": "Mesh"}
-
+    "location": "Create Deform Armature from Rig in spacebar menu",
+    "description": "copies the deform bones of a rig into a deform armature with copy Transforms applied ",
+    "warning": "",
+    "wiki_url": "",
+    "category": "Rigging"}
+    
 import bpy
 
 def create_deform_armature(self, context):
@@ -20,36 +22,32 @@ def create_deform_armature(self, context):
         bpy.context.active_object.name = origin_name+"_deform"
         rig_deform = bpy.context.object
         
-
+        rig_deform.name = "Armature_deform"
+        rig_deform.data.name = "Armature_deform"
+        
         remove_bones = []
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.armature.layers_show_all(all=True)
-        bpy.ops.armature.select_all(action='TOGGLE')
         
-        for bone in bpy.data.armatures[rig_deform.data.name].bones:
+        for bone in rig_deform.data.edit_bones:
             if bone.use_deform == False:
                 remove_bones.append(bone)
                       
-        for bone in remove_bones:
-            bpy.ops.object.select_pattern(pattern = bone.name)
-            bpy.ops.armature.delete()
+        for bone in remove_bones:     
+            rig_deform.data.edit_bones.remove(bone)
         
         #clear all constraints
-        bpy.ops.object.mode_set(mode='POSE')
-        rig_deform.name = "Armature_deform"
-        bpy.ops.pose.select_all(action='TOGGLE')
-        bpy.ops.pose.constraints_clear()
-        bpy.ops.pose.select_all(action='TOGGLE')
-        #assign transformation constraints to the original rig
-
-        for bone in bpy.data.armatures[rig_deform.data.name].bones:
-            rig_deform.data.bones[bone.name].select = True
-            rig_deform.data.bones.active = bone
-            bpy.ops.pose.constraint_add(type='COPY_TRANSFORMS')
-            rig_deform.pose.bones[bone.name].constraints["Copy Transforms"].target = bpy.data.objects[rig.name]
-            rig_deform.pose.bones[bone.name].constraints["Copy Transforms"].subtarget = bone.name
-
-    
+        for bone in rig_deform.pose.bones:
+            for constraint in bone.constraints:
+                bone.constraints.remove(constraint)
+                
+        #assign transformation constraints with a target to the original rig relative bones
+        for bone in rig_deform.pose.bones:
+            constraint = bone.constraints.new(type='COPY_TRANSFORMS')
+            constraint.target = bpy.data.objects[rig.name]
+            constraint.subtarget = bone.name
+            
+    bpy.ops.object.mode_set(mode='OBJECT')
 
 class DeformArmature(bpy.types.Operator):
     bl_idname = 'armature.copy_deform'
