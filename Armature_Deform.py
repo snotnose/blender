@@ -6,7 +6,7 @@ bl_info = {
     "location": "Create Deform Armature from Rig in spacebar menu",
     "description": "copies the deform bones of a rig into a deform armature with copy Transforms applied ",
     "warning": "",
-    "wiki_url": "",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Rigging/DeformArmature",
     "category": "Rigging"}
     
 import bpy
