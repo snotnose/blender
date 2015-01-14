@@ -3,7 +3,7 @@ import random
 
 def randomize(self, context):
     
-    threshold = bpy.context.scene["threshold"]
+    threshold = bpy.context.scene.threshold
     
     action = bpy.context.object.animation_data.action
     for fcu in action.fcurves:
@@ -36,6 +36,12 @@ class RandomizeKeys(bpy.types.Operator):
     bl_label = "Randomize keyframes"
     bl_idname = "fcurves.random"
     bl_options = {'REGISTER', 'UNDO'}  
+    
+    bpy.types.Scene.threshold = bpy.props.FloatProperty(name="threshold", description="Threshold of keyframes", default=0.1, min=0.0, max = 1.0)
+    
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
       
     def execute(self, context):
         randomize(self, context)
@@ -48,12 +54,6 @@ class RandomizeKeys_Panel(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_category = "Animation"
-    
-    bpy.types.Scene.threshold = bpy.props.FloatProperty(name="threshold", description="Threshold of keyframes", default=0.1, min=0.0, max = 1.0)
-    
-    @classmethod
-    def poll(cls, context):
-        return context.active_object is not None
     
     def draw(self, context):
         layout = self.layout
