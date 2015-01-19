@@ -1,3 +1,14 @@
+bl_info = {
+    "name": "Randomize keyframes",
+    "author": "Tal Hershkovich ",
+    "version": (1, 0),
+    "blender": (2, 72, 0),
+    "location": "View3D > Tool Shelf > Animation > Randomize keyframes",
+    "description": "Randomize selected keyframes, useful for giving cycle animations some variations",
+    "warning": "",
+    "wiki_url": "coming soon",
+    "category": "Animation"}
+
 import bpy
 import random
 
@@ -20,7 +31,6 @@ def randomize(self, context):
      
         for key in fcu.keyframe_points:
             if key.select_control_point == True:
-                print(str(fcu.data_path) + " channel " + str(fcu.array_index))
                 #store handle_type 
                 handle_r_type = key.handle_right_type
                 handle_l_type = key.handle_left_type               
@@ -41,7 +51,7 @@ class RandomizeKeys(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return context.active_object is not None
+        return context.active_object and context.active_object.animation_data and context.active_object.animation_data.action is not None
       
     def execute(self, context):
         randomize(self, context)
