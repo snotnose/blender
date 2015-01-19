@@ -1,13 +1,27 @@
+bl_info = {
+    "name": "Rename outputs",
+    "author": "Tal Hershkovich ",
+    "version": (1, 0),
+    "blender": (2, 72, 0),
+    "location": "View3D > Tool Shelf > Render > Rename Outputs",
+    "description": "replace strings of outputs in render output and compositing output nodes",
+    "warning": "",
+    "wiki_url": "coming soon",
+    "category": "Render"}
+
 import bpy
    
 def replace_outputs(self, context):
     old_str = bpy.context.scene.old_string
     new_str = bpy.context.scene.new_string
     for scene in bpy.data.scenes:
-        for node in scene.node_tree.nodes:
-            if node.type == 'OUTPUT_FILE':
-                node.base_path = node.base_path.replace(old_str, new_str)          
-                node.file_slots[0].path = node.file_slots[0].path.replace(old_str, new_str)
+        
+        if scene.use_nodes:
+            
+            for node in scene.node_tree.nodes:
+                if node.type == 'OUTPUT_FILE':
+                    node.base_path = node.base_path.replace(old_str, new_str)          
+                    node.file_slots[0].path = node.file_slots[0].path.replace(old_str, new_str)
                 
         scene.render.filepath = scene.render.filepath.replace(old_str, new_str)
         
