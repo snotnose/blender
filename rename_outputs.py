@@ -6,7 +6,7 @@ bl_info = {
     "location": "View3D > Tool Shelf > Render > Rename Outputs",
     "description": "replace strings of outputs in render output and compositing output nodes",
     "warning": "",
-    "wiki_url": "coming soon",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Render/Rename_Outputs",
     "category": "Render"}
 
 import bpy
