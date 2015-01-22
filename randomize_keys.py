@@ -6,7 +6,7 @@ bl_info = {
     "location": "View3D > Tool Shelf > Animation > Randomize keyframes",
     "description": "Randomize selected keyframes, useful for giving cycle animations some variations",
     "warning": "",
-    "wiki_url": "coming soon",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Animation/Randomize_Keyframes",
     "category": "Animation"}
 
 import bpy
