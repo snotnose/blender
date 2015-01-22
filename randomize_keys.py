@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Randomize keyframes",
     "author": "Tal Hershkovich ",
-    "version": (1, 0),
+    "version": (0, 1),
     "blender": (2, 72, 0),
     "location": "View3D > Tool Shelf > Animation > Randomize keyframes",
     "description": "Randomize selected keyframes, useful for giving cycle animations some variations",
