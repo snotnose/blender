@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Rename outputs",
     "author": "Tal Hershkovich ",
-    "version": (1, 0),
+    "version": (0, 1),
     "blender": (2, 72, 0),
     "location": "View3D > Tool Shelf > Render > Rename Outputs",
     "description": "replace strings of outputs in render output and compositing output nodes",
