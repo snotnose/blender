@@ -6,7 +6,7 @@ bl_info = {
     "location": "View3D > Tool Shelf > Animation > Multikey",
     "description": "Edit Multiply Keyframes by adjusting their value or randomizing it",
     "warning": "",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Animation/Randomize_Keyframes",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Animation/Multikey",
     "category": "Animation"}
 
 import bpy
