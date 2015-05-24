@@ -1,13 +1,16 @@
 bl_info = {
     "name": "Create Deform Armature from Rig",
-    "author": "Tal Hershkovich",
-    "version" : (0, 1),
+    "author": "Tal Hershkovich, Ferran MClar",
+    "version" : (0, 2),
     "blender" : (2, 72, 0),
-    "location": "Create Deform Armature from Rig in spacebar menu",
-    "description": "copies the deform bones of a rig into a deform armature with copy Transforms applied ",
+    "location": "Create Deform Armature from Rig in spacebar menu + Bake Actions",
+    "description": "copies the deform bones of a rig into a deform armature with Copy Transforms Constraints applied. It also has an operator to bake all the actions into such (or any) armature",
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Rigging/DeformArmature",
     "category": "Rigging"}
+    
+### Ferran MClar's note/disclaimer: took the original script from Tal Hershkovich and made a panel for the operator
+### plus merged the 'bake_all_anim' script, also from Tal Hershkovich.
     
 import bpy
 
@@ -22,8 +25,8 @@ def create_deform_armature(self, context):
         bpy.context.active_object.name = origin_name+"_deform"
         rig_deform = bpy.context.object
         
-        rig_deform.name = "Armature_deform"
-        rig_deform.data.name = "Armature_deform"
+        rig_deform.name = origin_name+"_deform" #"Armature_deform"
+        rig_deform.data.name = origin_name+"_deform" #"Armature_deform"
         
         remove_bones = []
         bpy.ops.object.mode_set(mode='EDIT')
@@ -46,8 +49,81 @@ def create_deform_armature(self, context):
             constraint = bone.constraints.new(type='COPY_TRANSFORMS')
             constraint.target = bpy.data.objects[rig.name]
             constraint.subtarget = bone.name
+            #constraint.owner_space = 'LOCAL'
+            #constraint.target_space = 'LOCAL'
             
     bpy.ops.object.mode_set(mode='OBJECT')
+    
+def optimise_rigify_for_unity(self, context):
+    rig = bpy.context.active_object
+
+    if rig.type == "ARMATURE":
+        #create a duplicate
+        bpy.ops.object.mode_set(mode='OBJECT')
+        origin_name = rig.name
+        bpy.ops.object.duplicate()
+        bpy.context.active_object.name = origin_name+"_deform"
+        rig_deform = bpy.context.object
+        
+        rig_deform.name = origin_name+"_deform" #"Armature_deform"
+        rig_deform.data.name = origin_name+"_deform" #"Armature_deform"
+        
+        remove_bones = []
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.armature.layers_show_all(all=True)
+        
+        for bone in rig_deform.data.edit_bones:
+            if not bone.name.startswith("ORG-"):
+                remove_bones.append(bone)
+                      
+        for bone in remove_bones:     
+            rig_deform.data.edit_bones.remove(bone)
+        
+        #clear all constraints
+        for bone in rig_deform.pose.bones:
+            for constraint in bone.constraints:
+                bone.constraints.remove(constraint)
+                
+        #assign transformation constraints with a target to the original rig relative bones
+        for bone in rig_deform.pose.bones:
+            constraint = bone.constraints.new(type='COPY_TRANSFORMS')
+            constraint.target = bpy.data.objects[rig.name]
+            constraint.subtarget = bone.name
+            #constraint.owner_space = 'LOCAL'
+            #constraint.target_space = 'LOCAL'
+            
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+
+
+def set_copy_transform_constraints(self, context):
+    flag = True
+    for obj in bpy.context.selected_objects:
+        if obj.type != 'ARMATURE':
+            flag = False
+        if obj == bpy.context.active_object:
+            rig_deform = obj
+        else:
+            target = obj.name
+        
+    if flag == True and len(bpy.context.selected_objects) == 2:
+    
+        #clear all constraints
+        for bone in rig_deform.pose.bones:
+            for constraint in bone.constraints:
+                bone.constraints.remove(constraint)
+                
+        #assign transformation constraints with a target to the original rig relative bones
+        for bone in rig_deform.pose.bones:
+            constraint = bone.constraints.new(type='COPY_TRANSFORMS')
+            constraint.target = bpy.data.objects[target]
+            constraint.subtarget = bone.name
+            #constraint.owner_space = 'LOCAL'
+            #constraint.target_space = 'LOCAL'
+                
+        bpy.ops.object.mode_set(mode='OBJECT')
+    else:
+        print('You have to select 2 Armatures for baking')
 
 class DeformArmature(bpy.types.Operator):
     bl_idname = 'armature.copy_deform'
@@ -57,14 +133,127 @@ class DeformArmature(bpy.types.Operator):
     def execute(self, context):
         create_deform_armature(self, context)
         return {'FINISHED'}
+
+class OptimisedArmature(bpy.types.Operator):
+    bl_idname = 'armature.optimise_for_unity'
+    bl_label = 'Optimise Armature for Unitys avatar System'
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        optimise_rigify_for_unity(self, context)
+        return {'FINISHED'}
+
+class SetConstraints(bpy.types.Operator):
+    bl_idname = 'armature.set_constraints'
+    bl_label = 'Set constraints from given rig'
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        set_copy_transform_constraints(self, context)
+        return {'FINISHED'}
+        
+
+class BakeActions(bpy.types.Operator):
+    bl_idname = 'armature.bake_actions'
+    bl_label = 'bake actions from selected to active (2 armatures only)'
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        old_actions = list(bpy.data.actions)
+        flag = True
+
+        for obj in bpy.context.selected_objects:
+            if obj.type != 'ARMATURE':
+                flag = False
+            if obj == bpy.context.active_object:
+                armature = obj
+            else:
+                rig = obj
+
+        #check that only 2 armatures are selected with one activated
+        if flag == True and len(bpy.context.selected_objects) == 2:
+
+            for act in old_actions:
+                bpy.context.active_object.select = False
+                rig.select = True
+                bpy.context.scene.objects.active = rig
+                bpy.ops.object.posemode_toggle()
+                bpy.context.object.animation_data.action = act
+                #store the original name of the action
+                name = act.name
+                #rename the old action from the control rig
+                bpy.context.object.animation_data.action.name = act.name + "_control"
+                
+                bpy.ops.object.posemode_toggle()
+                bpy.context.active_object.select = False
+                armature.select = True
+                bpy.context.scene.objects.active = armature
+                
+                bpy.ops.nla.bake(frame_start=act.frame_range[0], frame_end=act.frame_range[1], only_selected=False, visual_keying=True, bake_types={'POSE'})
+                
+                #store the new action with the name of the original action
+                bpy.context.object.animation_data.action.name = name
+                bpy.context.object.animation_data.action.use_fake_user = True
+            
+            #remove all the old actions   
+            for old_act in old_actions:
+                for act in bpy.data.actions:
+                    if old_act == act:
+                        act.user_clear()
+            
+            #remove constraints from armature    
+            armature.select = True
+            bpy.ops.object.posemode_toggle()
+            bpy.ops.pose.select_all(action='SELECT')
+            bpy.ops.pose.constraints_clear()
+    
+        else:
+            print('You have to select 2 Armatures for baking')
+        
+        return {'FINISHED'}
+
+        
+class DeformArmature_Panel(bpy.types.Panel):
+    bl_label = "Armature Deform Panel"
+    bl_idname = "_armaturedeform"
+    
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = "UI"
+    bl_category = "Armature_Utils"
+
+    
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object.type == "ARMATURE"
+
+    def draw(self, context):
+        layout = self.layout
+
+        newArmature = layout.row()
+        newArmature.operator('armature.copy_deform', text="Create Deform Armature from Rig", icon = 'MOD_ARMATURE')
+        optimiseArmature = layout.row()
+        optimiseArmature.operator('armature.optimise_for_unity', text="Optimise Rigify Rig for Unity", icon = 'MOD_ARMATURE')
+        setConstraints = layout.row()
+        setConstraints.operator('armature.set_constraints', text="Create constraints", icon = 'MODIFIER')
+        bake = layout.row()
+        bake.operator("armature.bake_actions", text="Bake actions", icon = 'REC')
     
 def register():
     
     bpy.utils.register_class(DeformArmature)
+    bpy.utils.register_class(OptimisedArmature)
+    bpy.utils.register_class(SetConstraints)
+    bpy.utils.register_class(BakeActions)
+    bpy.utils.register_class(DeformArmature_Panel)
     
     
 def unregister():
     bpy.utils.unregister_class(DeformArmature)
+    bpy.utils.unregister_class(OptimisedArmature)
+    bpy.utils.unregister_class(SetConstraints)
+    bpy.utils.unregister_class(BakeActions)
+    bpy.utils.unregister_class(DeformArmature_Panel)
     
 
 if __name__ == "__main__":  # only for live edit.
