@@ -1,3 +1,5 @@
+'''assign automatically colorered bone groups'''
+
 import bpy
 
 ob = bpy.context.object
