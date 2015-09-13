@@ -1,0 +1,52 @@
+import bpy
+
+#re-link auto weights
+#select the mesh object that will be reparented and run script
+obj = bpy.context.object
+
+
+
+if bpy.context.object.type == 'MESH':
+    initial_def = []
+    new_def = []
+    rig_name = bpy.context.object.modifiers["Armature"].object.name
+    rig = bpy.data.armatures[rig_name]
+
+    
+
+    #store old deform setting
+    for bone in rig.bones:
+        if bone.use_deform:
+            initial_def.append(bone)
+        
+        for group in bpy.context.object.vertex_groups:
+            if bone.name == group.name and bone.use_deform == True:
+                new_def.append(bone)
+                
+                
+    print(new_def) 
+    for bone in initial_def:
+        if bone in new_def:
+            bone.use_deform = True
+        else:
+            bone.use_deform = False
+         
+    bpy.ops.object.vertex_group_remove(all = True)            
+    bpy.ops.object.select_all(action = 'TOGGLE')            
+    
+    bpy.data.objects[rig.name].select = True   
+    bpy.data.objects[obj.name].select = True 
+    bpy.context.scene.objects.active = bpy.data.objects[rig.name]          
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    print ("relinked to ", bpy.context.scene.objects.active.name )
+    
+    for bone in initial_def:
+        bone.use_deform = True
+
+else:
+    print['not a mesh']
+            
+
+    
+
+
