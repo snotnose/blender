@@ -1,19 +1,33 @@
 bl_info = {
     "name": "Create Deform Armature from Rig",
     "author": "Tal Hershkovich, Ferran MClar",
-    "version" : (0, 2),
-    "blender" : (2, 72, 0),
+    "version" : (0, 3),
+    "blender" : (2, 76, 0),
     "location": "Create Deform Armature from Rig in spacebar menu + Bake Actions",
     "description": "copies the deform bones of a rig into a deform armature with Copy Transforms Constraints applied. It also has an operator to bake all the actions into such (or any) armature",
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Rigging/DeformArmature",
     "category": "Rigging"}
-    
-### Ferran MClar's note/disclaimer: took the original script from Tal Hershkovich and made a panel for the operator
-### plus merged the 'bake_all_anim' script, also from Tal Hershkovich.
-    
+      
 import bpy
+  
+#bpy.types.Scene.action_list = bpy.props.BoolProperty(name="Action List", description="View all actions UI", default=False, options={'HIDDEN'})
 
+
+#updates the action from the action editor's tab onto the ui list 
+def action_updated(context):
+    ob = bpy.context.object
+    action_index = bpy.data.actions.find(ob.animation_data.action.name)
+    if action_index != ob.action_list_index:
+        print("action changed")
+        ob.action_list_index = action_index       
+              
+#select the new action when there is a new selection in the ui list and go to the first frame
+def update_action_list(self, context):
+    ob = bpy.context.object
+    ob.animation_data.action = bpy.data.actions[ob.action_list_index]
+    bpy.context.scene.frame_current = 1
+    
 def create_deform_armature(self, context):
     rig = bpy.context.active_object
 
@@ -124,6 +138,24 @@ def set_copy_transform_constraints(self, context):
         bpy.ops.object.mode_set(mode='OBJECT')
     else:
         print('You have to select 2 Armatures for baking')
+        
+#adding a handler when the checkbox is checked
+def my_prop_callback(self, context):
+    if bpy.context.object.animation_data != None and bpy.context.scene.action_list:
+        #print("added handler")
+        bpy.app.handlers.scene_update_post.append(action_updated)
+    elif "action_updated" in str(bpy.app.handlers.scene_update_post):
+        #print("removed handler")
+        bpy.app.handlers.scene_update_post.remove(action_updated)
+        
+#Checkbox property for the action list ui
+bpy.types.Scene.action_list = bpy.props.BoolProperty(name="Action List", description="View all actions UI", default=False, options={'HIDDEN'}, update=my_prop_callback)
+
+#if "action_list" in bpy.context.scene:
+#    print("found")
+#    bpy.context.scene['action_list'] = 0
+    
+########################################
 
 class DeformArmature(bpy.types.Operator):
     bl_idname = 'armature.copy_deform'
@@ -152,7 +184,6 @@ class SetConstraints(bpy.types.Operator):
         set_copy_transform_constraints(self, context)
         return {'FINISHED'}
         
-
 class BakeActions(bpy.types.Operator):
     bl_idname = 'armature.bake_actions'
     bl_label = 'bake actions from selected to active (2 armatures only)'
@@ -201,6 +232,7 @@ class BakeActions(bpy.types.Operator):
                     if old_act == act:
                         act.user_clear()
             
+            
             #remove constraints from armature    
             armature.select = True
             bpy.ops.object.posemode_toggle()
@@ -212,7 +244,13 @@ class BakeActions(bpy.types.Operator):
         
         return {'FINISHED'}
 
-        
+class ACTION_UI_list(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            pass
+                
 class DeformArmature_Panel(bpy.types.Panel):
     bl_label = "Armature Deform Panel"
     bl_idname = "_armaturedeform"
@@ -229,6 +267,7 @@ class DeformArmature_Panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        
 
         newArmature = layout.row()
         newArmature.operator('armature.copy_deform', text="Create Deform Armature from Rig", icon = 'MOD_ARMATURE')
@@ -238,14 +277,24 @@ class DeformArmature_Panel(bpy.types.Panel):
         setConstraints.operator('armature.set_constraints', text="Create constraints", icon = 'MODIFIER')
         bake = layout.row()
         bake.operator("armature.bake_actions", text="Bake actions", icon = 'REC')
-    
+        layout.prop(context.scene, 'action_list')
+        layout.separator()
+        
+        if bpy.context.scene.action_list:
+            layout.template_list("ACTION_UI_list", "", bpy.data, "actions", context.object, "action_list_index")
+           
+
 def register():
-    
+    bpy.types.Object.action_list_index = bpy.props.IntProperty(update=update_action_list)
     bpy.utils.register_class(DeformArmature)
     bpy.utils.register_class(OptimisedArmature)
     bpy.utils.register_class(SetConstraints)
     bpy.utils.register_class(BakeActions)
+    bpy.utils.register_class(ACTION_UI_list)
     bpy.utils.register_class(DeformArmature_Panel)
+    
+    
+    #bpy.utils.register_module(__name__)
     
     
 def unregister():
@@ -253,10 +302,10 @@ def unregister():
     bpy.utils.unregister_class(OptimisedArmature)
     bpy.utils.unregister_class(SetConstraints)
     bpy.utils.unregister_class(BakeActions)
+    bpy.utils.unregister_class(ACTION_UI_list)
     bpy.utils.unregister_class(DeformArmature_Panel)
+    del bpy.types.Object.action_list_index
     
 
 if __name__ == "__main__":  # only for live edit.
     register()
-
-    
