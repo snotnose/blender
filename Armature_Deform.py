@@ -10,16 +10,14 @@ bl_info = {
     "category": "Rigging"}
       
 import bpy
-  
-#bpy.types.Scene.action_list = bpy.props.BoolProperty(name="Action List", description="View all actions UI", default=False, options={'HIDDEN'})
-
-
+from bpy.app.handlers import persistent
+   
 #updates the action from the action editor's tab onto the ui list 
 def action_updated(context):
     ob = bpy.context.object
     action_index = bpy.data.actions.find(ob.animation_data.action.name)
     if action_index != ob.action_list_index:
-        print("action changed")
+        #print("action changed")
         ob.action_list_index = action_index       
               
 #select the new action when there is a new selection in the ui list and go to the first frame
@@ -141,19 +139,25 @@ def set_copy_transform_constraints(self, context):
         
 #adding a handler when the checkbox is checked
 def my_prop_callback(self, context):
-    if bpy.context.object.animation_data != None and bpy.context.scene.action_list:
-        #print("added handler")
-        bpy.app.handlers.scene_update_post.append(action_updated)
-    elif "action_updated" in str(bpy.app.handlers.scene_update_post):
-        #print("removed handler")
-        bpy.app.handlers.scene_update_post.remove(action_updated)
-        
+    if bpy.context.scene.action_list:
+        if bpy.context.object.animation_data != None:
+            #print("added handler")
+            bpy.app.handlers.scene_update_post.append(action_updated)
+        elif "action_updated" in str(bpy.app.handlers.scene_update_post):
+            #print("removed handler")
+            bpy.app.handlers.scene_update_post.remove(action_updated)
+    
 #Checkbox property for the action list ui
 bpy.types.Scene.action_list = bpy.props.BoolProperty(name="Action List", description="View all actions UI", default=False, options={'HIDDEN'}, update=my_prop_callback)
 
-#if "action_list" in bpy.context.scene:
-#    print("found")
-#    bpy.context.scene['action_list'] = 0
+
+@persistent
+def load_post_handler(scene):
+    #print("Event: load_post")
+    if hasattr(bpy.context.scene, "action_list"):
+        #print("found ", bpy.context.scene.action_list)
+        bpy.context.scene.action_list = False
+        #print(bpy.context.scene.action_list)
     
 ########################################
 
@@ -284,6 +288,7 @@ class DeformArmature_Panel(bpy.types.Panel):
             layout.template_list("ACTION_UI_list", "", bpy.data, "actions", context.object, "action_list_index")
            
 
+
 def register():
     bpy.types.Object.action_list_index = bpy.props.IntProperty(update=update_action_list)
     bpy.utils.register_class(DeformArmature)
@@ -292,6 +297,7 @@ def register():
     bpy.utils.register_class(BakeActions)
     bpy.utils.register_class(ACTION_UI_list)
     bpy.utils.register_class(DeformArmature_Panel)
+    bpy.app.handlers.load_post.append(load_post_handler)
     
     
     #bpy.utils.register_module(__name__)
@@ -304,6 +310,7 @@ def unregister():
     bpy.utils.unregister_class(BakeActions)
     bpy.utils.unregister_class(ACTION_UI_list)
     bpy.utils.unregister_class(DeformArmature_Panel)
+    bpy.app.handlers.load_post.remove(load_post_handler)
     del bpy.types.Object.action_list_index
     
 
