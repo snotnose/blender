@@ -267,7 +267,10 @@ class DeformArmature_Panel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return bpy.context.active_object.type == "ARMATURE"
+        if len(bpy.context.selected_objects)!= 0:
+            return bpy.context.active_object.type == "ARMATURE"
+        else:
+            return False
 
     def draw(self, context):
         layout = self.layout
