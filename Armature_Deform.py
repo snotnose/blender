@@ -143,9 +143,9 @@ def my_prop_callback(self, context):
         if bpy.context.object.animation_data != None:
             #print("added handler")
             bpy.app.handlers.scene_update_post.append(action_updated)
-        elif "action_updated" in str(bpy.app.handlers.scene_update_post):
-            #print("removed handler")
-            bpy.app.handlers.scene_update_post.remove(action_updated)
+    elif "action_updated" in str(bpy.app.handlers.scene_update_post):
+        #print("removed handler")
+        bpy.app.handlers.scene_update_post.remove(action_updated)
     
 #Checkbox property for the action list ui
 bpy.types.Scene.action_list = bpy.props.BoolProperty(name="Action List", description="View all actions UI", default=False, options={'HIDDEN'}, update=my_prop_callback)
@@ -267,7 +267,7 @@ class DeformArmature_Panel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object.type == "ARMATURE"
+        return bpy.context.active_object.type == "ARMATURE"
 
     def draw(self, context):
         layout = self.layout
