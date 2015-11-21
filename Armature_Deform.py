@@ -43,7 +43,7 @@ def create_deform_armature(self, context):
         remove_bones = []
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.armature.layers_show_all(all=True)
-        
+           
         for bone in rig_deform.data.edit_bones:
             if bone.use_deform == False:
                 remove_bones.append(bone)
@@ -55,6 +55,15 @@ def create_deform_armature(self, context):
         for bone in rig_deform.pose.bones:
             for constraint in bone.constraints:
                 bone.constraints.remove(constraint)
+                
+        #clear drivers
+        rig_deform.animation_data_clear()
+        
+        #clear all custom properties
+        for prop in bpy.context.object.data.items():
+            del bpy.context.object.data[prop[0]]
+        for prop in bpy.context.object.items():
+            del bpy.context.object[prop[0]]
                 
         #assign transformation constraints with a target to the original rig relative bones
         for bone in rig_deform.pose.bones:
