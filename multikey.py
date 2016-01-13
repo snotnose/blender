@@ -60,24 +60,38 @@ def randomize(self, context):
             
             
 def evaluate_value(self, context):
-    action = bpy.context.object.animation_data.action
+    obj = bpy.context.object
+    action = obj.animation_data.action
     
     for fcu in action.fcurves: 
-        bonelist = check_selected_bones() 
-        for bone in bonelist:
-            #find the fcurve of the bone
-            if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
-                index = fcu.array_index
-                #get the transform path
-                transform = fcu.data_path[15 + len(bone.name):]
-                if transform in ["rotation_quaternion","rotation_euler", "location", "scale"]:
-                    current_value = getattr(bpy.context.active_object.pose.bones[bone.name], transform)
-                    #calculate the difference between current value and the fcurve value 
-                    value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
-                    if value != 0:
-                        for key in fcu.keyframe_points:
-                            add_value(key, value)
-                        fcu.update()
+        if obj.type == 'ARMATURE':
+            bonelist = check_selected_bones()
+            for bone in bonelist:
+                #find the fcurve of the bone
+                if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
+                    index = fcu.array_index
+                    #get the transform path
+                    transform = fcu.data_path[15 + len(bone.name):]
+                    if transform in ["rotation_quaternion","rotation_euler", "location", "scale"]:
+                        current_value = getattr(bpy.context.active_object.pose.bones[bone.name], transform)
+                        #calculate the difference between current value and the fcurve value 
+                        value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
+                        if value != 0:
+                            for key in fcu.keyframe_points:
+                                add_value(key, value)
+                            fcu.update()
+                            
+        else:
+            index = fcu.array_index
+            transform = fcu.data_path
+            current_value = getattr(bpy.context.object, transform)
+            
+            value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
+            if value != 0:
+                for key in fcu.keyframe_points:
+                    add_value(key, value)
+                fcu.update()
+                       
                                
 class RandomizeKeys(bpy.types.Operator):
     """Create Random Keys"""
