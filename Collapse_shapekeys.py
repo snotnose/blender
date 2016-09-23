@@ -1,4 +1,4 @@
-#Collapsing all shapekeys with Left and Right Vgroups for exporting clean shapekeys to fbx
+#Collapsing all shapekeys with Vgroups for exporting clean shapekeys to fbx
 
 import bpy
 
@@ -10,15 +10,11 @@ for shapekey in keyblocks:
 	shapekey.value = 0
 	shapekeynames.append(shapekey.name)    
 
-print(shapekeynames)
-
-
 for name in shapekeynames:
 	shapekey = keyblocks[name]
 	if shapekey.vertex_group is not '':
 		shapekey.value = 1
 		bpy.ops.object.shape_key_add(from_mix=True)
-		print (obj.active_shape_key)
 		new_shapekey = obj.active_shape_key
 		for i in range(0,len(keyblocks)):
 			if keyblocks[i].name == name:
@@ -26,7 +22,4 @@ for name in shapekeynames:
 		bpy.ops.object.shape_key_remove(all=False)
 		new_shapekey.name = name
 		
-
-
-	
 bpy.context.scene.update() 
