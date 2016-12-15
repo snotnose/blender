@@ -8,7 +8,6 @@ group_names = {}
 group_names["Main", "THEME09"] = ["torso", "chest", "hips","shoulder","head", "neck", "eye", "jaw","master"]
 group_names["FK", "THEME04"] = ["fk"]
 group_names["IK", "THEME01"] = ["ik"]
-group_names["Head", "THEME11"] = ["head", "neck"]
 group_names["Face", "THEME02"] = ["cheek", "nose", "lip","chin","brow","lid","ear"]
 group_names["Finger", "THEME06"] = ["f_", "thumb", "palm"]
 group_names["Tweaks", "THEME07"] = ["tweak"]
