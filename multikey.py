@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Multikey",
     "author": "Tal Hershkovich ",
-    "version": (0, 1),
-    "blender": (2, 74, 0),
+    "version": (0, 2),
+    "blender": (2, 78, 0),
     "location": "View3D > Tool Shelf > Animation > Multikey",
     "description": "Edit Multiply Keyframes by adjusting their value or randomizing it",
     "warning": "",
@@ -12,11 +12,18 @@ bl_info = {
 import bpy
 import random
 
-def check_selected_bones():
+
+    
+
+def check_selected_bones(obj):
     if  bpy.context.scene.selectedbones == True:
-            bonelist = bpy.context.selected_pose_bones
+            bonelist = []
+            for knochen in obj.pose.bones:
+                if knochen.bone.select == True:
+                    bonelist.append(knochen)
+            #bpy.context.selected_pose_bones
     else:
-        bonelist = bpy.context.object.pose.bones   
+        bonelist = obj.pose.bones
     return bonelist
         
 def add_value(key, value):
@@ -33,64 +40,75 @@ def add_value(key, value):
                 key.handle_right_type = "AUTO_CLAMPED"
                 key.handle_left_type = "AUTO_CLAMPED"
     
-    
+def random_value(fcu):
+    value_list = []
+    threshold = bpy.context.scene.threshold                        
+    #create an average value from selected keyframes
+    for key in fcu.keyframe_points: 
+        if key.select_control_point == True: #and fcu.data_path.find('rotation') == -1:
+            value_list.append(key.co[1])
+            
+    if len(value_list) > 0:
+        value = max(value_list)- min(value_list)
+        for key in fcu.keyframe_points:
+            add_value(key, value * random.uniform(-threshold, threshold))
+        fcu.update()
+                                
+                                
 def randomize(self, context):
     
-    threshold = bpy.context.scene.threshold
+    #threshold = bpy.context.scene.threshold
     
-    action = bpy.context.object.animation_data.action
-    for fcu in action.fcurves:
-        bonelist = check_selected_bones() 
-        for bone in bonelist:
-            #find the fcurve of the bone
-            if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
-                
-                value_list = []
-                
-                #create an average value from selected keyframes
-                for key in fcu.keyframe_points: 
-                    if key.select_control_point == True: #and fcu.data_path.find('rotation') == -1:
-                        value_list.append(key.co[1])
-                        
-                if len(value_list) > 0:
-                    value = max(value_list)- min(value_list)
-                    for key in fcu.keyframe_points:
-                        add_value(key, value * random.uniform(-threshold, threshold))
-                    fcu.update()
-            
+    objects = bpy.context.selected_objects
+    
+    for obj in objects:
+    
+        if obj.animation_data.action is not None:
+            action = obj.animation_data.action
+            for fcu in action.fcurves:
+                if obj.type == 'ARMATURE':
+                    bonelist = check_selected_bones(obj) 
+                    for bone in bonelist:
+                        #find the fcurve of the bone
+                        if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
+                            random_value(fcu)                              
+                else:
+                    random_value(fcu)
             
 def evaluate_value(self, context):
-    obj = bpy.context.object
-    action = obj.animation_data.action
     
-    for fcu in action.fcurves: 
-        if obj.type == 'ARMATURE':
-            bonelist = check_selected_bones()
-            for bone in bonelist:
-                #find the fcurve of the bone
-                if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
+    for obj in bpy.context.selected_objects:
+        
+        if obj.animation_data.action is not None:
+            action = obj.animation_data.action
+            for fcu in action.fcurves: 
+                if obj.type == 'ARMATURE':
+                    bonelist = check_selected_bones(obj)
+                    for bone in bonelist:
+                        #find the fcurve of the bone
+                        if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
+                            index = fcu.array_index
+                            #get the transform path
+                            transform = fcu.data_path[15 + len(bone.name):]
+                            if transform in ["rotation_quaternion","rotation_euler", "location", "scale"]:
+                                current_value = getattr(obj.pose.bones[bone.name], transform)
+                                #calculate the difference between current value and the fcurve value 
+                                value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
+                                if value != 0:
+                                    for key in fcu.keyframe_points:
+                                        add_value(key, value)
+                                    fcu.update()
+                                    
+                else:
                     index = fcu.array_index
-                    #get the transform path
-                    transform = fcu.data_path[15 + len(bone.name):]
-                    if transform in ["rotation_quaternion","rotation_euler", "location", "scale"]:
-                        current_value = getattr(bpy.context.active_object.pose.bones[bone.name], transform)
-                        #calculate the difference between current value and the fcurve value 
-                        value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
-                        if value != 0:
-                            for key in fcu.keyframe_points:
-                                add_value(key, value)
-                            fcu.update()
-                            
-        else:
-            index = fcu.array_index
-            transform = fcu.data_path
-            current_value = getattr(bpy.context.object, transform)
-            
-            value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
-            if value != 0:
-                for key in fcu.keyframe_points:
-                    add_value(key, value)
-                fcu.update()
+                    transform = fcu.data_path
+                    current_value = getattr(obj, transform)
+                    
+                    value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
+                    if value != 0:
+                        for key in fcu.keyframe_points:
+                            add_value(key, value)
+                        fcu.update()
                        
                                
 class RandomizeKeys(bpy.types.Operator):
@@ -103,7 +121,7 @@ class RandomizeKeys(bpy.types.Operator):
       
     @classmethod
     def poll(cls, context):
-        return context.active_object and context.active_object.animation_data and context.active_object.animation_data.action is not None
+        return context.active_object and context.active_object.animation_data
       
     def execute(self, context):
         randomize(self, context)
@@ -121,7 +139,7 @@ class Multikey(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return context.active_object and context.active_object.animation_data and context.active_object.animation_data.action is not None and bpy.context.scene.tool_settings.use_keyframe_insert_auto == False
+        return context.active_object and context.active_object.animation_data and bpy.context.scene.tool_settings.use_keyframe_insert_auto == False
       
     def execute(self, context):
         evaluate_value(self, context)
