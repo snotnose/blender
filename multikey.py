@@ -39,6 +39,14 @@ def add_value(key, value):
             else:
                 key.handle_right_type = "AUTO_CLAMPED"
                 key.handle_left_type = "AUTO_CLAMPED"
+                
+#calculate the difference between current value and the fcurve value                
+def add_diff(fcu, current_value, index):    
+    value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
+    if value != 0:
+        for key in fcu.keyframe_points:
+            add_value(key, value)
+        fcu.update()
     
 def random_value(fcu):
     value_list = []
@@ -81,36 +89,36 @@ def evaluate_value(self, context):
         
         if obj.animation_data.action is not None:
             action = obj.animation_data.action
-            for fcu in action.fcurves: 
+            
+            for fcu in action.fcurves:     
+                index = fcu.array_index
                 if obj.type == 'ARMATURE':
+                    transformations = ["rotation_quaternion","rotation_euler", "location", "scale"]
+                    
+                    #add value to the whole armature keyframes
+                    if fcu.data_path[0:18] in transformations:
+                        current_value = getattr(obj, fcu.data_path)
+                        add_diff(fcu, current_value, index)     
+                    
+                    #add value to bones
                     bonelist = check_selected_bones(obj)
                     for bone in bonelist:
+                        
                         #find the fcurve of the bone
-                        if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
-                            index = fcu.array_index
-                            #get the transform path
+                        if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"': 
                             transform = fcu.data_path[15 + len(bone.name):]
-                            if transform in ["rotation_quaternion","rotation_euler", "location", "scale"]:
+                            if transform in transformations:
                                 current_value = getattr(obj.pose.bones[bone.name], transform)
                                 #calculate the difference between current value and the fcurve value 
-                                value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
-                                if value != 0:
-                                    for key in fcu.keyframe_points:
-                                        add_value(key, value)
-                                    fcu.update()
-                                    
+                                add_diff(fcu, current_value, index)
+                                
+             
                 else:
-                    index = fcu.array_index
                     transform = fcu.data_path
                     current_value = getattr(obj, transform)
                     
-                    value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
-                    if value != 0:
-                        for key in fcu.keyframe_points:
-                            add_value(key, value)
-                        fcu.update()
-                       
-                               
+                    add_diff(fcu, current_value, index)
+                                                    
 class RandomizeKeys(bpy.types.Operator):
     """Create Random Keys"""
     bl_label = "Randomize keyframes"
