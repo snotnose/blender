@@ -1,9 +1,9 @@
 bl_info = {
     "name": "Multikey",
     "author": "Tal Hershkovich ",
-    "version": (0, 2),
-    "blender": (2, 78, 0),
-    "location": "View3D > Tool Shelf > Animation > Multikey",
+    "version": (0, 3),
+    "blender": (2, 80, 0),
+    "location": "3DView",
     "description": "Edit Multiply Keyframes by adjusting their value or randomizing it",
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Animation/Multikey",
@@ -12,61 +12,33 @@ bl_info = {
 import bpy
 import random
 
-
+def store_handles(key):
+    #storing the distance between the handles bezier to the key value
+    handle_r = key.handle_right[1] - key.co[1]
+    handle_l = key.handle_left[1] - key.co[1]
     
+    return handle_r, handle_l
 
+def apply_handles(key, handle_r, handle_l):
+    if bpy.context.scene.handletype == True:
+         key.handle_right[1] = key.co[1] + handle_r
+         key.handle_left[1] = key.co[1] + handle_l
+    else:
+        key.handle_right_type = "AUTO_CLAMPED"
+        key.handle_left_type = "AUTO_CLAMPED"
+                
 def check_selected_bones(obj):
     if  bpy.context.scene.selectedbones == True:
             bonelist = []
             for knochen in obj.pose.bones:
                 if knochen.bone.select == True:
                     bonelist.append(knochen)
-            #bpy.context.selected_pose_bones
     else:
         bonelist = obj.pose.bones
     return bonelist
-        
-def add_value(key, value):
-    if key.select_control_point == True:
-            #store handle_type 
-            handle_r_type = key.handle_right_type
-            handle_l_type = key.handle_left_type               
-            
-            key.co[1] += value
-            if bpy.context.scene.handletype == True:
-                key.handle_right_type = handle_r_type
-                key.handle_left_type = handle_l_type
-            else:
-                key.handle_right_type = "AUTO_CLAMPED"
-                key.handle_left_type = "AUTO_CLAMPED"
-                
-#calculate the difference between current value and the fcurve value                
-def add_diff(fcu, current_value, index):    
-    value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
-    if value != 0:
-        for key in fcu.keyframe_points:
-            add_value(key, value)
-        fcu.update()
-    
-def random_value(fcu):
-    value_list = []
-    threshold = bpy.context.scene.threshold                        
-    #create an average value from selected keyframes
-    for key in fcu.keyframe_points: 
-        if key.select_control_point == True: #and fcu.data_path.find('rotation') == -1:
-            value_list.append(key.co[1])
-            
-    if len(value_list) > 0:
-        value = max(value_list)- min(value_list)
-        for key in fcu.keyframe_points:
-            add_value(key, value * random.uniform(-threshold, threshold))
-        fcu.update()
-                                
-                                
-def randomize(self, context):
-    
-    #threshold = bpy.context.scene.threshold
-    
+
+def check_fcurve(function):
+    #checking the selected fcurve and applying the function to it
     objects = bpy.context.selected_objects
     
     for obj in objects:
@@ -79,10 +51,58 @@ def randomize(self, context):
                     for bone in bonelist:
                         #find the fcurve of the bone
                         if fcu.data_path.rfind(bone.name) == 12 and fcu.data_path[12 + len(bone.name)] == '"':
-                            random_value(fcu)                              
+                            function(fcu)                           
                 else:
-                    random_value(fcu)
+                    function(fcu)
+        
+def add_value(key, value):
+    if key.select_control_point == True:
+            #store handle values in relative to the keyframe value
+            handle_r, handle_l = store_handles(key)              
             
+            key.co[1] += value
+            apply_handles(key, handle_r, handle_l)
+                
+#calculate the difference between current value and the fcurve value                
+def add_diff(fcu, current_value, index):    
+    value = current_value[index] - fcu.evaluate(bpy.context.scene.frame_current)
+    if value != 0:
+        for key in fcu.keyframe_points:
+            add_value(key, value)
+        fcu.update()
+        
+def scale_value(fcu):
+    value_list = []
+    scale = bpy.context.scene.scalevalues
+    for key in fcu.keyframe_points: 
+        if key.select_control_point == True: 
+            value_list.append(key.co[1])
+    if len(value_list)>1:
+        #the average value with the scale property added to it
+        avg_value = sum(value_list) / len(value_list)
+        for key in fcu.keyframe_points:
+            if key.select_control_point == True:
+                #store handle_type 
+                handle_r, handle_l = store_handles(key)
+                #add the value of the distance from the average * scale factor
+                key.co[1] = avg_value + ((key.co[1] - avg_value)*scale)
+                key = apply_handles(key, handle_r, handle_l)
+        fcu.update()
+    
+def random_value(fcu):
+    value_list = []
+    threshold = bpy.context.scene.threshold                        
+    for key in fcu.keyframe_points: 
+        if key.select_control_point == True: 
+            value_list.append(key.co[1])
+            
+    if len(value_list) > 0:
+        value = max(value_list)- min(value_list)
+        for key in fcu.keyframe_points:
+            add_value(key, value * random.uniform(-threshold, threshold))
+        fcu.update()
+                                
+                                    
 def evaluate_value(self, context):
     
     for obj in bpy.context.selected_objects:
@@ -119,23 +139,39 @@ def evaluate_value(self, context):
                     
                     add_diff(fcu, current_value, index)
                                                     
-class RandomizeKeys(bpy.types.Operator):
+class RANDOMIZE_OT_RandomizeKeys(bpy.types.Operator):
     """Create Random Keys"""
     bl_label = "Randomize keyframes"
-    bl_idname = "fcurves.random"
+    bl_idname = "fcurves.randomizekeys"
     bl_options = {'REGISTER', 'UNDO'}  
     
-    bpy.types.Scene.threshold = bpy.props.FloatProperty(name="threshold", description="Threshold of keyframes", default=0.1, min=0.0, max = 1.0)
+    bpy.types.Scene.threshold = bpy.props.FloatProperty(name="Threshold", description="Threshold of keyframes", default=0.1, min=0.0, max = 1.0)
       
     @classmethod
     def poll(cls, context):
         return context.active_object and context.active_object.animation_data
       
     def execute(self, context):
-        randomize(self, context)
+        check_fcurve(random_value)
+        return {'FINISHED'} 
+    
+class SCALE_OT_ScaleValues(bpy.types.Operator):
+    """Scale Keyframe Values"""
+    bl_label = "Scale Keyframes Values"
+    bl_idname = "fcurves.scalevalues"
+    bl_options = {'REGISTER', 'UNDO'}  
+    
+    bpy.types.Scene.scalevalues = bpy.props.FloatProperty(name="Scale Factor", description="Scale percentage of the average value", default=1.0)
+      
+    @classmethod
+    def poll(cls, context):
+        return context.active_object and context.active_object.animation_data
+      
+    def execute(self, context):
+        check_fcurve(scale_value)
         return {'FINISHED'} 
                                    
-class Multikey(bpy.types.Operator):
+class MULTIKEY_OT_Multikey(bpy.types.Operator):
     """Edit all selected keyframes"""
     bl_label = "Edit Selected Keyframes"
     bl_idname = "fcurves.multikey"
@@ -153,13 +189,13 @@ class Multikey(bpy.types.Operator):
         evaluate_value(self, context)
         return {'FINISHED'} 
     
-class Multikey_Panel(bpy.types.Panel):
+class MultikeyPanel(bpy.types.Panel):
     """Add random value to selected keyframes"""
     bl_label = "Multikey"
-    bl_idname = "fcurves.panel"
+    bl_idname = "SCENE_PT_layout"
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_category = "Animation"
+    bl_region_type = 'UI'
+    bl_category= 'Tool'
     
     def draw(self, context): 
         layout = self.layout
@@ -169,19 +205,29 @@ class Multikey_Panel(bpy.types.Panel):
         layout.label(text="Edit all selected keyframes")
         layout.operator("fcurves.multikey")
         layout.separator()
+        layout.label(text="Scale Keyframe Values")
+        layout.operator("fcurves.scalevalues")
+        layout.prop(context.scene, 'scalevalues')
+        layout.separator()
         layout.label(text="Randomize selected keyframes")
-        layout.operator("fcurves.random")
+        layout.operator("fcurves.randomizekeys")
         layout.prop(context.scene, 'threshold', slider = True)       
 
-def register():
+classes = (MultikeyPanel, MULTIKEY_OT_Multikey, RANDOMIZE_OT_RandomizeKeys, SCALE_OT_ScaleValues)
+
+register, unregister = bpy.utils.register_classes_factory(classes)
+
+'''def register():
     bpy.utils.register_class(Multikey)
+    bpy.utils.register_class(ScaleValues)
     bpy.utils.register_class(RandomizeKeys)
     bpy.utils.register_class(Multikey_Panel)
 
 def unregister():
     bpy.utils.unregister_class(Multikey)
-    bpy.utils.register_class(RandomizeKeys)
-    bpy.utils.unregister_class(Multikey_Panel)
+    bpy.utils.unregister_class(ScaleValues)
+    bpy.utils.unregister_class(RandomizeKeys)
+    bpy.utils.unregister_class(Multikey_Panel)'''
 
 if __name__ == "__main__":
     register()                               
